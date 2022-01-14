@@ -12,9 +12,9 @@ geometry: margin=1in
 knitr::opts_chunk$set(echo = TRUE)
  
 # Load Packages
-library(tidyverse)
-library(knitr)
-library(ISLR2)
+if(!require(tidyverse)) {install.packages(tidyverse)};  library(tidyverse)
+if(!require(knitr))     {install.packages(knitr)};      library(knitr)
+if(!require(ISLR2))     {install.packages(ISLR2)};      library(ISLR2)
 ```
 
 # Chapter 1: Introduction
