@@ -17,6 +17,39 @@ if(!require(knitr))     {install.packages(knitr)};      library(knitr)
 if(!require(ISLR2))     {install.packages(ISLR2)};      library(ISLR2)
 ```
 
+# Tentative Schedule
+
+**Week 1**: Chapter 1
+
+**Week 2**: Chapter 2.1-2.2
+
+**Week 3**: Chapter 4.1-4.3 (4.4 optional). Lab 4.7.1-2 (4.7.3-5 optional).
+
+**Week 4**: Chapter 4.5-4.6. Lab 4.7.7.
+
+**Week 5**: Chapter 5.1-5.2. Lab 5.3.1-4.
+
+**Week 6**: Chapter 6.2-6.3 (6.4 optional). Lab 6.5.1-3.
+
+**Week 7**: Chapter 8.1-8.2. Lab 8.3.1-5
+
+**Week 8**: Chapter 12.1-12.2. Lab 12.5.1.
+
+**Week 9**: Chapter 12.4. Lab 12.5.3-4
+
+**Week 10**: Grace Week
+
+# Organization
+
+Chapters get single-# headers, and sections get double-## headers. 
+
+Sub-sections (e.g. Chapter 2.1.3) are separated with horizontal lines (created with three asterisks):  
+
+***
+
+
+\clearpage
+
 # Chapter 1: Introduction
 
 Statistical Learning is split up into **supervised learning** and **unsupervised learning**. 
@@ -240,3 +273,121 @@ The **$K$-Nearest Neighbors Classifier** (KNN) allows us to construct a decision
 $$\Pr(Y = j | X = x_0) = \frac{1}{K}\sum_{i \in \mathcal{N}_0}I(y_i=j)$$
 
 Similar to regression methods from earlier sections, KNN can be very flexible with low values of $K$, and for any set of training data, it can be important to optimize the value of $K$ selected to minimize the test error. 
+
+\clearpage 
+
+# Chapter 4: Classification
+
+**Classification** is a statistical method used with a *qualitative* response variable.
+
+Some classifiers covered in this chapter include logistic regression, linear discriminant analysis, quadratic discriminant analysis, naive Bayes, and $K$-nearest neighbors. These topics are used to segue into Generalized Linear Models and Poisson Regression.
+
+## 4.1: An Overview of Classification
+
+The `Default` data set will be used extensively, in predicting whether an individual will default on their credit card payment, on the basis of their annual income and monthly credit card balance. 
+
+We'll be building a model to predict `default` from `balance` ($X_1$) and `income` ($X_2$). 
+
+## 4.2: Why Not Linear Regression?
+
+Linear regression doesn't work for classification problems because in order to predict an outcome, we need to *numerically encode* the categories as a quantitative response variable. This doesn't work because the categories rarely ever have any logical order. 
+
+In the case of predicting medical diagnoses, a response variable might look like: 
+$$
+Y = 
+\begin{cases}
+    1 & \text{if } \texttt{stroke}, \\
+    2 & \text{if } \texttt{drug overdose}, \\
+    3 & \text{if } \texttt{epileptic seizure}.
+\end{cases}
+$$
+
+The situation improves slightly if we choose to use the *dummy variable* approach, where we code a response variable which looks like: 
+$$
+Y = 
+\begin{cases}
+    0 & \text{if } \texttt{stroke}; \\
+    1 & \text{if } \texttt{drug overdose}.
+\end{cases}
+$$
+
+In this case, we could have some estimates outside of the $[0,1]$ range, which leads to difficulty interpreting probabilities. 
+
+Overall: (1) regression cannot accommodate non-binary classification, and (b) regression methods will not provide meaningful estimates of $\Pr(Y|X)$, even with just two classes. 
+
+## 4.3: Logistic Regression
+
+Consider the binary classification problem, namely with the `Default` data set. 
+
+**Logistic regression** models the *probability* that $Y$ belongs to a particular class, rather than modeling the classification directly.
+
+The probability of defaulting given a certain balance can be expressed as 
+$$\Pr(\texttt{balance} = \texttt{Yes} | \texttt{balance}) \equiv p(\texttt{balance})$$
+
+In general, we notate that $p(X) = \Pr(Y = 1 | X)$. In logistic regression, we use the logistic function, which we can rearrange to create a linear regression problem. 
+$$
+\begin{aligned}
+p(X) &= \frac{e^{\beta_0 + \beta_1 X}}{1 + e^{\beta_0 + \beta_1 X}} && \text{Logistic Function}
+\\
+\therefore \quad \frac{p(X)}{1-p(X)} &= e^{\beta_0 + \beta_1 X} &&\text{Odds}
+\\
+\log\left(\frac{p(X)}{1-p(X)}\right) &= \beta_0 + \beta_1 X && \text{Log Odds / Logit}
+\end{aligned}
+$$
+Odds close to zero indicate low probabilities of default, and values close to $\infty$ indicate high probabilities of default. Interpreting this final equation is a bit tricky, as a one-unit increase in $X$ will yield a $\beta_1$ increase in the log odds.
+
+***
+
+The coefficients $\beta_0$ and $\beta_1$ must be estimated to best fit our training data. This is done using *maximum likelihood estimation*. The likelihood function is: 
+$$\ell(\beta_0, \beta_1) = \prod_{i:y_i=1}p(x_i)\ \prod_{i':y_{i'}=0}(1-p(x_{i'}))$$
+The estimates $\hat\beta_0$ and $\hat\beta_1$ are chosen to maximize this likelihood function. 
+
+In a problem of inference looking for association between `default` and `balance`, our null hypothesis would be $H_0: \beta_1 = 0$, which makes sense because a one-unit increase in $X$ should not affect $Y$ at all. So the null logistic function will be $p(X) = \frac{e^{\beta_0}}{1+e^{\beta_0}}$. Similarly to linear regression, the z-statistic associated with $\beta_1$ is $z=\hat\beta_1/\text{SE}(\hat\beta_1)$. 
+
+*** 
+
+For making predictions, we plug our estimates into the logistic function, so we have the equation: 
+$$\hat p(X) = \frac{e^{\hat\beta_0 + \hat\beta_1 X}}{1 + e^{\hat\beta_0 + \hat\beta_1 X}}$$
+
+***
+
+**Multiple Logistic Regression** extends nicely out from simple logistic regression, where we can generalize our log odds equation from earlier: 
+$$
+\log\left(\frac{p(X)}{1-p(X)}\right) = 
+\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p
+$$
+Where we have $p$ predictors. This also means that our logistic equation for making predictions becomes: 
+$$p(X) = \frac{e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}}{1+e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}}$$
+
+We would also use maximum likelihood estimation to estimate all the coefficients $\beta_0, \beta_1, \ldots, \beta_p$.
+
+***
+
+What happens when we want to classify something which has more than one outcome? In the previous section we dealt with the three classes being `stroke`, `drug overdose`, and `epileptic seizure`. This is a problem of **multinomial logistic regression**. We select a single class to act as the *baseline*, then we say that: 
+$$
+\Pr(Y=k | X=x) = 
+\begin{cases}
+\displaystyle\frac{e^{\beta_{k0} + \beta_{k1}x_1 + \cdots + \beta_{kp}x_p}}{1 + \sum_{l=1}^{K-1}e^{\beta_{l0} + \beta_{l1}x_1 + \cdots +  \beta_{lp}x_p}} &\text{for }k = 1, \ldots, K-1, \\
+\\
+\displaystyle\frac{1}{1 + \sum_{l=1}^{K-1}e^{\beta_{l0} + \beta_{l1}x_1 + \cdots +  \beta_{lp}x_p}} &\text{for }k=K.
+\end{cases}
+$$
+
+Additionally, it can be shown that 
+
+$$
+\log\left(\frac{\Pr(Y=k | X=x)}{\Pr(Y=K | X=x)}\right) = 
+\beta_{k0} + \beta_{k1}x_1 + \cdots + \beta_{kp}x_p
+$$
+
+An alternative coding for multinomial logistic regression is known as *softmax* coding, where, rather than selecting a baseline class, we treat all $K$ classes symmetrically, and assume that for $k = 1, \ldots, K$, 
+$$
+\Pr(Y=k | X=x) = 
+\frac{e^{\beta_{k0} + \beta_{k1}x_1 + \cdots + \beta_{kp}x_p}}{1 + \sum_{l=1}^{K}e^{\beta_{l0} + \beta_{l1}x_1 + \cdots +  \beta_{lp}x_p}}
+$$
+So, we actually estimate coefficients for all $K$ classes rather than just for $K-1$ classes. As a result of this, the log odds ratio between the $k$th and $k'$th classes is 
+$$
+\log\left(\frac{\Pr(Y=k | X=x)}{\Pr(Y=k' | X=x)}\right) = 
+(\beta_{k0} - \beta_{k'0}) + (\beta_{k1} - \beta_{k'1})x_1 + \cdots + (\beta_{kp} - \beta_{k'p})x_p
+$$
+
