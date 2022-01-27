@@ -1,0 +1,365 @@
+---
+title: "Chapter 4 Labs and Exercises"
+output: 
+    github_document: 
+        toc: true
+---
+
+```{r setup, include = F}
+# Set Chunk Options
+knitr::opts_chunk$set(echo = TRUE)
+ 
+# Load Packages
+if(!require(tidyverse)) {install.packages("tidyverse")};    library(tidyverse)
+if(!require(knitr))     {install.packages("knitr")};        library(knitr)
+if(!require(ISLR2))     {install.packages("ISLR2")};        library(ISLR2)
+if(!require(MASS))      {install.packages("MASS")};         library(MASS)
+if(!require(e1071))     {install.packages("e1071")};        library(e1071)
+if(!require(class))     {install.packages("class")};        library(class)
+```
+
+# Labs
+
+## Stock Market Data
+
+We'll look a little bit at the `Smarket` data. 
+```{r}
+library(ISLR2)
+names(Smarket)
+dim(Smarket)
+summary(Smarket)
+pairs(Smarket)
+cor(Smarket[, -9]) %>% round(4)
+attach(Smarket)
+plot(Volume)
+```
+
+## Logistic Regression
+
+We'll look at fitting a logistic regression model to predict `Direction` using `Lag1` through `Lag5` and `Volume`. We will use the `glm()` function with `family = binomial` to indicate that we are performing logistic regression rather than some other form of linear model. 
+```{r}
+glm.fits <- glm(
+    Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, 
+    data = Smarket, family = binomial
+)
+summary(glm.fits)
+```
+
+It makes sense here that the lowest p-value and negative coefficient is associated with `Lag1`, because if the market went up yesterday, it's more likely to go down today. However, it doesn't seem like there's a real association between any of these covariates and `Direction`. 
+
+We can access more specific information about just the coefficients using either the `coef()` function or calling the `coefficients` item in the model object. 
+```{r}
+glm.fits$coefficients
+summary(glm.fits)$coefficients
+```
+
+Now we can use the model we fit to predict probabilities based on a given input.
+```{r}
+glm.probs <- predict(glm.fits, type = "response")
+glm.probs[1:10]
+contrasts(Direction)
+```
+
+We can now work on making predictions for whether the market will go up or down on a particular day. We do this by making a vector of length equal to that of `Smarket`, assigning each one a value of down, then changing individual elements to "Up" if the corresponding value from `glm.probs` is greater than 0.5. 
+```{r}
+glm.pred <- rep("Down", 1250)
+glm.pred[glm.probs > 0.5] = "Up"
+```
+
+Now we can look at a confusion matrix to see how good our model is. 
+```{r}
+table(glm.pred, Direction)
+```
+
+Our accuracy is given by the proportion of correct predictions, which we can calculate with: 
+```{r}
+mean(glm.pred == Direction)
+```
+
+From this calculation, we can see that our logistic regression model is accurate only `r mean(glm.pred == Direction)*100`% of the time. This gives us an error rate of `r (1-mean(glm.pred == Direction))*100`%, which is an *optimistic* error rate because we've used the whole data set rather than using a subset for training. 
+
+Let's now consider a model which we train using data from 2001 to 2004, then use that to predict observations from 2005. 
+```{r}
+train <- (Year < 2005)
+Smarket.2005 <- Smarket[!train, ]
+dim(Smarket.2005)
+Direction.2005 <- Direction[!train]
+
+glm.fits <- glm(
+    Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, 
+    data = Smarket, family = binomial, subset = train
+)
+glm.probs <- predict(glm.fits, Smarket.2005, type = "response")
+
+glm.pred <- rep("Down", length(glm.probs))
+glm.pred[glm.probs > 0.5] <- "Up"
+table(glm.pred, Direction.2005)
+mean(glm.pred == Direction.2005) # Accuracy 
+mean(glm.pred != Direction.2005) # Error rate
+```
+
+It turns out that our model which uses the 2001 through 2004 data as a training set performs *worse* than even random guessing. And of course, it performs worse than our first model because in our first model, we used the whole data set as a training set, whereas here we subsetted just four years to train on. 
+
+Let's try another model. From our `glm` summary earlier, it appeared as though `Lag1` and `Lag2` were the only really useful predictors, so let's try fitting a logistic regression model using just those two as predictors with the same training subset we just used.
+```{r}
+glm.fits <- glm(
+    Direction ~ Lag1 + Lag2, 
+    data = Smarket, family = binomial, subset = train
+)
+glm.probs <- predict(glm.fits, Smarket.2005, type = "response")
+glm.pred <- rep("Down", length(glm.probs))
+glm.pred[glm.probs > 0.5] <- "Up"
+
+table(glm.pred, Direction.2005)
+mean(glm.pred == Direction.2005) # Accuracy
+mean(glm.pred != Direction.2005) # Error Rate
+```
+
+This model also doesn't bode well for predicting the stock market. It turns out that random guessing would be just as accurate as using this model. 
+
+If we want to use this model to guess the direction based on a novel set of data, we would use the following syntax: 
+```{r}
+predict(
+    glm.fits, 
+    newdata = data.frame(
+        Lag1 = c(1.2, 1.5), 
+        Lag2 = c(1.1, -0.8)
+    ), 
+    type = "response"
+)
+```
+
+## Linear Discriminant Analysis
+
+We can now fit LDA on the `Smarket` data. The syntax of the `lda()` function is identical to that of the `lm()` function. We will use the same training set as before. 
+```{r}
+lda.fit <- lda(
+    Direction ~ Lag1 + Lag2, 
+    data = Smarket, subset = train
+)
+lda.fit
+plot(lda.fit)
+```
+
+The LDA model provides us with all the values necessary to do Linear Discriminant Analysis by hand, that is, the estimates of the parameters used in the discriminant function. The `plot()` function provides distributions of the discriminant functions themselves, one for each group (Up or Down). 
+```{r} 
+lda.pred <- predict(lda.fit, Smarket.2005)
+names(lda.pred)
+```
+
+We observed in Section 4.5 that LDA and Logistic Regression predictions are nearly identical. Let's show that now. 
+```{r}
+lda.class <- lda.pred$class
+table(lda.class, Direction.2005)
+mean(lda.class == Direction.2005) # Accuracy
+mean(lda.class != Direction.2005) # Error Rate
+```
+
+## Quadratic Discriminant Analysis
+
+Fitting a QDA model works just the same as the LDA model, also from the `MASS` package. 
+```{r}
+qda.fit <- qda(
+    Direction ~ Lag1 + Lag2, 
+    data = Smarket, subset = train
+)
+qda.fit
+qda.class <- predict(qda.fit, Smarket.2005)$class
+table(qda.class, Direction.2005)
+mean(qda.class == Direction.2005) # Accuracy
+mean(qda.class != Direction.2005) # Error Rate
+```
+
+The accuracy of the QDA model is greater than that of Logistic Regression and LDA, which implies that the quadratic model might capture the true relationship more accurately than the linear forms from LDA and Logistic Regression. 
+
+## Naive Bayes
+
+We can also fit a naive Bayes classifier to the `Smarket` data, using the `naiveBayes()` function from the `e1071` package. By default, this naive Bayes classifier uses a Gaussian approximation for each quantitative variable, but a kernel density method can also be used. The syntax is the same as the previous models. 
+```{r}
+nb.fit <- naiveBayes(
+    Direction ~ Lag1 + Lag2, 
+    data = Smarket, subset = train
+)
+nb.fit
+```
+
+This function computes the estimated mean and standard deviation for each variable in the class, and we can verify this: 
+```{r}
+mean(Lag1[train][Direction[train] == "Down"])
+sd(Lag1[train][Direction[train] == "Down"])
+```
+
+We can then predict just the same as the other models: 
+```{r}
+nb.class <- predict(nb.fit, Smarket.2005)
+table(nb.class, Direction.2005)
+mean(nb.class == Direction.2005) # Accuracy
+mean(nb.class != Direction.2005) # Error Rate
+```
+
+This model performs only slightly worse than QDA, but much better than LDA. 
+
+The `predict()` function can also output the probability that a particular observation belongs to a certain class: 
+```{r}
+nb.preds <- predict(nb.fit, Smarket.2005, type = "raw")
+nb.preds[1:5, ]
+```
+
+## K-Nearest Neighbors
+
+We can also train a KNN classifier using the `knn()` function from the `class` library. This model does **not** work the same as the other model functions we've been using, and instead we need to create a few different inputs: 
+
+- `train.X` is a matrix containing predictors associated with the training data
+- `test.X` is the corresponding matrix for the test data
+- `train.Direction` (also sometimes called `train.y`) contains class labels for the training set
+- A value for K, the number of nearest neighbors to be used by the classifier. 
+
+```{r}
+train.X <- cbind(Lag1, Lag2)[train, ]
+test.X <- cbind(Lag1, Lag2)[!train, ]
+train.Direction <- Direction[train]
+```
+
+We can now run the classifier. We'll use a set seed to get the same result every time. 
+```{r}
+set.seed(1)
+knn.pred <- knn(train.X, test.X, train.Direction, k = 1)
+table(knn.pred, Direction.2005)
+mean(knn.pred == Direction.2005) # Accuracy
+mean(knn.pred != Direction.2005) # Error Rate
+```
+
+This is not a good result. Changing the value of K and rerunning the model can improve it slightly: 
+```{r}
+knn.pred <- knn(train.X, test.X, train.Direction, k=2)
+mean(knn.pred == Direction.2005) # Accuracy
+knn.pred <- knn(train.X, test.X, train.Direction, k=3)
+mean(knn.pred == Direction.2005) # Accuracy
+```
+
+KNN works well on data with many observations, and 1250 observations is not a very large amount. 
+
+We can look instead at the `Caravan` data set from the `ISLR2` package, where we'll analyze `Purchase` as a response variable, which indicates whether or not a given individual purchases a caravan insurance policy. 
+```{r}
+dim(Caravan)
+attach(Caravan)
+summary(Purchase)
+```
+
+For K-nearest neighbors, the classification depends on the Euclidian distance between two points. Because of this, it follows naturally that variables with a larger *scale* have a larger impact on the classification. Thus, we need to scale down all the variables in a process called *standardization*. This can be done with the `scale` function. 
+```{r}
+standardized.X <- scale(Caravan[, -86])
+var(Caravan[, 1])
+var(Caravan[, 2])
+var(standardized.X[, 1])
+var(standardized.X[, 2])
+```
+
+Now every column has the same standard deviation/variance. We can now fit the model, with K=1: 
+```{r}
+test <- 1:1000
+train.X <- standardized.X[-test, ]
+test.X <- standardized.X[test, ]
+train.Y <- Purchase[-test]
+test.Y <- Purchase[test]
+set.seed(1)
+knn.pred <- knn(train.X, test.X, train.Y, k=1)
+table(knn.pred, test.Y)
+mean(knn.pred == test.Y) # Accuracy
+mean(knn.pred != test.Y) # Error Rate
+mean(test.Y != "No")
+```
+
+The last calculation done there is the proportion of people who responded "Yes" in the test set. So while our accuracy looks good, we can get a better prediction by just guessing "No" for every observation. 
+
+How can we make our model better? Well, consider that the insurance company might only want to try to sell insurance to a random selection of customers. Rather than the total proportion of people who buy it, we only care about the fraction of individuals who are correctly predicted to buy insurance. 
+```{r}
+table(knn.pred, test.Y)
+9 / ( 68 + 9)
+```
+
+Increasing to K=3, we get: 
+```{r}
+knn.pred <- knn(train.X, test.X, train.Y, k=3)
+table(knn.pred, test.Y)
+5 / ( 21 + 5)
+```
+
+Now our success rate jumps to 19%. Let's try with K=5: 
+```{r}
+knn.pred <- knn(train.X, test.X, train.Y, k=5)
+table(knn.pred, test.Y)
+4 / ( 11 + 4)
+```
+A success rate of almost 27% is much better than our initial success of around 11%. 
+
+We can also fit a Logistic regression model to the data. If we use 0.5 as a cutoff, our model will be terrible. However, if we change that cutoff to 0.25, we get much better results: 
+```{r}
+glm.fits <- glm(
+    Purchase ~ ., data = Caravan, family = binomial, subset = -test
+)
+glm.probs <- predict(glm.fits, Caravan[test, ], 
+                     type = "response")
+glm.pred <- rep("No", 1000)
+glm.pred[glm.probs > 0.5] <- "Yes" # Cutoff of 0.5
+table(glm.pred, test.Y)
+0 / (7 + 0)
+
+glm.pred <- rep("No", 1000)
+glm.pred[glm.probs > 0.25] <- "Yes" # Cutoff of 0.25
+table(glm.pred, test.Y)
+11 / (22 + 11)
+
+```
+This model is over five times better than random guessing!
+
+## Poisson Regression
+
+For this lab section, we'll use the `Bikeshare` data from the `ISLR2` library. 
+
+```{r}
+attach(Bikeshare)
+dim(Bikeshare)
+names(Bikeshare)
+```
+
+To start, we can fit a linear regression model: 
+```{r}
+mod.lm <- lm(
+    bikers ~ mnth + hr + workingday + temp + weathersit, 
+    data = Bikeshare
+)
+summary(mod.lm)
+```
+
+In this model, we treat hour 0 and month = January as being the baseline classes, so no estimates are provided for them. An alternative coding for the model is as follows: 
+```{r}
+contrasts(Bikeshare$hr) = contr.sum(24)
+contrasts(Bikeshare$mnth) = contr.sum(12)
+mod.lm2 <- lm(
+    bikers ~ mnth + hr + workingday + temp + weathersit, 
+    data = Bikeshare
+)
+summary(mod.lm2)
+```
+
+In practice, these two codings are the same, but the second one is used in Section 4.6.1. 
+```{r}
+all.equal(predict(mod.lm), predict(mod.lm2))
+```
+
+We can now fit a Poisson model using the `glm()` function: 
+```{r}
+mod.pois <- glm(
+    bikers ~ mnth + hr + workingday + temp + weathersit, 
+    data = Bikeshare, family = poisson
+)
+summary(mod.pois)
+plot(predict(mod.lm2), predict(mod.pois, type = "response"))
+abline(0, 1, col = 2, lwd = 3)
+```
+
+
+
+# Exercises
+
