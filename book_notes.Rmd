@@ -568,3 +568,88 @@ We can notice a few things about these results:
 There is no one classifier that can do it all. In six scenarios, six different classifiers were tested on each scenario. In addition to Logistic Regression, LDA, QDA, and naive Bayes, $K$-nearest neighbors with $K=1$ and with $K$ chosen automatically from a cross-validation set were compared. When the decision boundary is highly non-linear and we have many observations, the nonparametric approaches such as KNN tend to work much better than parametric models. 
 
 ## 4.6: Generalized Linear Models
+
+For this section, consider the `Bikeshare` data, which describes the number of hourly users of a bike sharing program in DC. The response is `bikers`, which is a *count* variable, and the covariates are `mnth`, `hr`, `workingday`, `temp`, and `weathersit`. 
+
+First, let's explore multiple linear regression on the data. We fit the model: 
+$$Y = \sum_{j=1}^p X_j\beta_j + \epsilon$$
+
+Performing multiple linear regression on the `Bikeshare` data is problematic for two reasons: 
+
+1. The `bikers` variable is fundamentally integer-valued, but a linear model assumes a continuous, normally distributed error term $\epsilon$. 
+2. With just multiple linear regression, it turns out that 9.6% of the fitted values are negative, which doesn't make sense at all. 
+
+To remedy the second issue, we could perhaps fit a model to the log of bikers, which would yield all positive predictions: 
+$$\log(Y) = \sum_{j=1}^p X_j\beta_j + \epsilon$$
+
+This, however, leads to difficulty in interpretation, namely that we would say that *a one-unit increase in $X_j$ is associated with an increase in the mean of the log of $Y$ by an amount $\beta_j$*. Also, this technique cannot be applied where $0$ is in the range of $Y$. 
+
+***
+
+To combat these issues, we can use **Poisson regression**. 
+
+If a random variable $Y$ follows a Poisson distribution, it has a probability mass function given by: 
+$$\Pr(Y=k) = \frac{e^{-\lambda}\lambda^k}{k!} \quad \text{for } k = 0, 1, 2, ...$$
+With a Poisson distribution, we know that the expected value *and* variance are both equal to $\lambda$. 
+
+The Poisson distribution is used to model *counts*. Let's consider: 
+
+- A particular hour of the day
+- A particular set of weather conditions 
+- During a particular month of the year
+
+For these specific parameters, we might have a Poisson distribution with $E(Y) = \lambda = 5$. So, for example, we would have $P(Y=2) = \frac{e^{-5}5^2}{2!} = 0.084$. We expect this value of $\lambda$ to vary according to each of our covariates (or predictors), so we write $\lambda$ as a function of each of the predictors: 
+$$\lambda = \lambda(X_1, X_2, \ldots, X_p)$$
+Because $\lambda$ can only take on values greater than zero, we model the logarithm of lambda as being a linear function of the covariates: 
+$$\log(\lambda(X_1, ..., X_p)) = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p$$
+Or equivalently, 
+$$\lambda(X_1, ..., X_p) = e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}$$
+Now that we have a form for $\lambda$ as a function of the covariates, we can write out our likelihood function: 
+$$L(\beta_0, \beta_1, \ldots, \beta_p) = \prod_{i=1}^{n} \frac{e^{-\lambda(x_i)}\lambda(x_i)^{y_i}}{y_i!}$$
+And we can use this along with maximum likelihood estimation to find the values of our coefficients $\beta_0, \beta_1, \ldots, \beta_p$ that fit our model. 
+
+In order to interpret the Poisson model, we should notice that increasing $X_j$ by one unit changes $\lambda = E(Y)$ by a factor of $\exp(\beta_j)$. With regards to the model itself, we also assume that the mean bike usage in an hour equals the variance of bike usage during that same hour. This relationship holds up nicely. Additionally, there are no negative fitted values since the Poisson distribution only holds for values $\geq 0$. 
+
+***
+
+Linear, logistic, and Poisson regression all share a few common characteristics: 
+
+1. Each approach uses predictors $X_1, \ldots, X_p$ to predict a response $Y$. We assume that $Y$ belongs to a family of distributions. For linear, we assume Gaussian; for logistic, we assume Bernoulli; for Poisson, we assume a Poisson distribution.
+2. Each approach models the mean of $Y$ as a function of the predictors.  
+For Linear Regression, we have: 
+$$
+E(Y|X_1, \ldots, X_p) = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p.
+$$
+For Logistic Regression, we have: 
+$$
+\begin{aligned}
+    E(Y|X_1, \ldots, X_p) &= \Pr(Y=1 | X_1, \ldots, X_p) \\
+    &= \frac{e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}}{1 + e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}}. 
+\end{aligned}
+$$
+For Poisson Regression, we have: 
+$$
+E(Y|X_1, \ldots, X_p) = e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}. 
+$$
+
+The previous three equations can be expressed in terms of a *link function*, given by $\eta$. That is, that 
+$$\eta(E(Y|X_1, \ldots, X_p)) = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p$$
+The link functions for these distributions are: 
+$$
+\begin{aligned}
+    \text{Linear:} &\quad \eta(\mu) = \mu
+    \\
+    \text{Logistic:} &\quad \eta(\mu) = \log\left(\frac{\mu}{1-\mu}\right)
+    \\
+    \text{Poisson:} &\quad \eta(\mu) = \log(\mu)
+\end{aligned}
+$$
+
+These three distributions (Gaussian, Bernoulli, and Poisson) all come from the *exponential family* of distributions, of which the Exponential, Gamma, and Negative Binomial Distributions are also members. 
+
+We create a regression problem by modeling $Y$ as coming from a member of the exponential family, then transforming the mean of the response so that it's a linear function of the predictors, then we bunch those transformations up into the link function $\eta$. A regression approach that follows this idea is called a **generalized linear model (GLM)**. 
+
+\clearpage
+
+# Chapter 5: Resampling Methods
+
