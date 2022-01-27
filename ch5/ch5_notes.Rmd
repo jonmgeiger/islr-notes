@@ -1,0 +1,9 @@
+---
+title: 'Chapter 5 Notes: Resampling Methods'
+subtitle: "Statistical Learning with R"
+author: "Jon Geiger"
+date: \today
+output: pdf_document
+geometry: margin=1in
+---
+
