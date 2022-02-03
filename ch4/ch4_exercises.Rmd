@@ -1,0 +1,343 @@
+---
+title: "Chapter 4 Exercises: Classification"
+subtitle: "Statistical Learning with R"
+author: "Jon Geiger"
+date: \today
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(tidyverse)
+library(ISLR2)
+library(e1071)
+library(class)
+set.seed(1)
+```
+
+## Conceptual Exercise 4
+
+It was stated in the text that classifying an observation to the class for which (4.17) is largest is equivalent to classifying an observation to the class for which (4.18) is largest. Prove that this is the case. In other words, under the assumption that the observations in the kth class are drawn from a $N(\mu_k, \sigma^2)$ distribution, the Bayes classifier assigns an observation to the class for which the discriminant function is maximized.
+
+### Solution
+
+Equation 4.17 gives us the posterior probability that a new observation will belong to the $k$th class, given by: 
+$$
+p_k(x) = 
+\frac
+{\pi_k \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{1}{2\sigma^2}(x-\mu_k)^2\right)}
+{\sum_{\ell=1}^{K}\pi_\ell \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{1}{2\sigma^2}(x-\mu_\ell)^2\right)}.
+$$
+We can notice that since we are trying to choose the value of $k$ which maximizes $p_k(x)$, and that the denominator of this function is constant across $k$s, maximizing this posterior probability on $k$ is equivalent to maximizing its numerator on $k$. Starting with this, we can derive the discriminant term, calling the numerator something different: 
+$$
+\begin{aligned}
+    p_k(x) &= 
+    \frac
+    {\pi_k \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{1}{2\sigma^2}(x-\mu_k)^2\right)}
+    {\sum_{\ell=1}^{K}\pi_\ell \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{1}{2\sigma^2}(x-\mu_\ell)^2\right)}
+    \\
+    \text{num}_k(x) &= 
+    \pi_k \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{1}{2\sigma^2}(x-\mu_k)^2\right)
+    \\\
+    \log(\text{num}_k(x)) &= 
+    \log\left(
+    \pi_k \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{1}{2\sigma^2}(x-\mu_k)^2\right)
+    \right)
+    \\
+    &= \log\left(\pi_k\right) + \log\left( \frac{1}{\sqrt{2\pi}\sigma}\right) + \log\left(\exp\left(-\frac{1}{2\sigma^2}(x-\mu_k)^2\right)\right) 
+    \\
+    &= \log(\pi_k) - \log\left(\sqrt{2\pi}\sigma\right) - \frac{1}{2\sigma^2}(x-\mu_k)^2
+    \\
+    \text{Since the middle term }&\text{is the same across all classes }k\text{, we can ignore it: }
+    \\
+    &= \log(\pi_k) - \frac{1}{2\sigma^2}(x-\mu_k)^2
+    \\
+    &= \log(\pi_k) - \frac{1}{2\sigma^2}(x^2 - 2x\cdot \mu_k + \mu_k^2)
+    \\
+    &= \log(\pi_k) - \frac{1}{2\sigma^2}(x^2) + \frac{1}{2\sigma^2} \cdot 2x\mu_k + \frac{1}{2\sigma^2} \cdot \mu_k^2) 
+    \\
+    \text{Ignoring the second term }&\text{by the same logic: }
+    \\
+    &= \log(\pi_k) + \frac{\mu_k}{\sigma^2} \cdot x + \frac{\mu_k^2}{2\sigma^2} 
+    \\
+    &= x \cdot \frac{\mu_k}{\sigma^2} - \frac{\mu_k^2}{2\sigma^2} + \log(\pi_k)
+    \\
+    &= \delta_k(x)
+\end{aligned}
+$$
+
+## Applied Exercise 16
+
+Using the `Boston` data set, fit classification models in order to predict whether a given census tract has a crime rate above or below the median. Explore logistic regression, LDA, naive Bayes, and KNN models using various subsets of the predictors. Describe your findings. 
+
+*Hint: You will have to create the response variable yourself, using the variables that are contained in the `Boston` data set.*
+
+### Solution
+
+Let's just take a quick look at the data first. 
+
+```{r}
+glimpse(Boston)
+```
+
+We can see that the first column of this data set is `crim`, so we can construct another column which indicates whether the crime rate is above or below the median crime rate: 
+
+```{r}
+median(Boston$crim)
+bos <- Boston %>% 
+    mutate("crimeful" = crim > median(crim), 
+           .after = crim)
+dim(bos)
+```
+
+Now that we've created our variable, let's create a few different subsets of the data for the purposes of testing our models. We'll create these as logical columns. For the first subset, we'll use the first 400 rows as a training set with the last 106 as a test set. For the second, we'll use the last 400 rows of the data as training with the first as a test set, and for the third subset we'll randomly assign 400 of the observations to be training examples with the rest being a part of the test set. 
+
+```{r}
+bos <- bos %>% 
+    mutate(
+        train1 = c(rep(TRUE, 400), rep(FALSE, 106)), 
+        train2 = c(rep(FALSE, 106), rep(TRUE, 400)), 
+        train3 = sample(train1), 
+        .before = everything()
+    )
+```
+
+We can now look again at our data, which has three train/test subsets attached to it: 
+```{r}
+glimpse(bos[,1:3])
+```
+
+As we can see, our train-test split worked out nicely. We can now go on to using logistic regression for classifying/predicting whether the crime rate is above or below the median. 
+
+**Logistic Regression**
+
+I want to take two different approaches to model selection, the first of which will be somewhat experimental and makes intuitive sense to me. The first approach is this: 
+
+1. Fit a logistic model to the whole data set with all features, and eliminate the features which were not significant
+2. Take three subsets of the data as training sets, and compare variable significance in the three different training subsets. Eliminate the features which are insignificant in two or more of the subsets. 
+3. Fit a model with the remaining features on the random subset (subset 3) and eliminate any insignificant features. 
+4. Repeat step 3 until all remaining features are significant. 
+
+The second approach will only utilize a random subset, which is the `train3` column in the data.
+
+We'll start by fitting a logistic regression model to the whole dataset to see which variables we should include in our regression model: 
+
+```{r}
+logistic_fit_initial <- glm(
+    crimeful ~ 
+        zn + indus + chas + nox + rm + age + dis + rad + tax + ptratio + lstat + medv, 
+    family = binomial, data = bos
+)
+summary(logistic_fit_initial)
+```
+
+As we can see, there are a few variables which are very statistically significant, so we can use reverse selection to only focus on those variables which are significant for the model, taking a threshold of $\alpha = 0.05$. Additionally, I would like to look at the model performance based on each of the three training sets, so we'll look at the significance levels of each model based on how the data was subsetted: 
+```{r}
+logistic_fit_1 <- glm(
+    crimeful ~ zn + nox + dis + rad + tax + ptratio + medv, 
+    family = binomial, data = bos, subset = bos$train1
+)
+logistic_fit_2 <- glm(
+    crimeful ~ zn + nox + dis + rad + tax + ptratio + medv, 
+    family = binomial, data = bos, subset = bos$train2
+)
+logistic_fit_3 <- glm(
+    crimeful ~ zn + nox + dis + rad + tax + ptratio + medv, 
+    family = binomial, data = bos, subset = bos$train3
+)
+```
+
+Now that we've created the three different models with the three different subsetting techniques, let's see how our model variables hold up. Below will be a significance table which shows the coefficients for the three different models, as well as that same table in logical form, using the same cutoff of $\alpha = 0.05$.
+```{r}
+signif_table <- rbind(
+    summary(logistic_fit_1)$coefficients[, 4], 
+    summary(logistic_fit_2)$coefficients[, 4], 
+    summary(logistic_fit_3)$coefficients[, 4]
+)
+signif_table
+signif_table < 0.05
+```
+
+We will modify the model again using only the variables for which at least two of the models show significance, using the random subsetting technique. 
+```{r}
+logistic_fit_first <- glm(
+    crimeful ~ zn + nox + rad + ptratio + medv, 
+    family = binomial, data = bos, subset = bos$train3
+)
+summary(logistic_fit_first)
+```
+
+We can now notice that suddenly, the `ptratio` variable doesn't meet the significance criterion, so we can remove it and give another summary: 
+```{r}
+logistic_fit_first <- glm(
+    crimeful ~ zn + nox + rad + medv, 
+    family = binomial, data = bos, subset = bos$train3
+)
+summary(logistic_fit_first)
+```
+
+We now see the same thing with the `medv` variable, so we eliminate it as well: 
+```{r}
+logistic_fit_first <- glm(
+    crimeful ~ zn + nox + rad, 
+    family = binomial, data = bos, subset = bos$train3
+)
+summary(logistic_fit_first)
+```
+
+And now we are left with a logistic regression model to predict whether or not an area is `crimeful` based on `zn`, `nox`, and `rad`. 
+
+Let's now use traditional reverse selection with the random training subset to see how different of a model we end up with. 
+```{r}
+kept_coefs <- function(x){
+    summary(x)$coefficients[,4] < 0.05
+}
+
+glm(
+    crimeful ~ 
+        zn + indus + chas + nox + rm + age + dis + rad + tax + ptratio + lstat + medv, 
+    family = binomial, data = bos, subset = bos$train3
+) %>% kept_coefs()
+
+glm(
+    crimeful ~ zn + indus + nox + rad + tax + medv, 
+    family = binomial, data = bos, subset = bos$train3
+) %>% kept_coefs()
+
+glm(
+    crimeful ~ zn + indus + nox + rad + tax, 
+    family = binomial, data = bos, subset = bos$train3
+) %>% kept_coefs()
+
+glm(
+    crimeful ~ zn + nox + rad + tax, 
+    family = binomial, data = bos, subset = bos$train3
+) %>% kept_coefs()
+
+logistic_fit_second <- glm(
+    crimeful ~ zn + nox + rad + tax, 
+    family = binomial, data = bos, subset = bos$train3
+)
+```
+
+We now have a model for the `crimeful` variable which depends on `zn`, `nox`, `rad`, and `tax`. Notice that in our previous model, we did not include tax, because it was not significant in the first two subsets, but it was significant in the third, random subset. We'll now compare the models using the first and second methods using the test set using a probability threshold of 0.5 for the logistic model. 
+
+```{r}
+logistic_preds_first  <- predict(
+    logistic_fit_first, 
+    newdata = bos[!bos$train3, ], #make prediction on test data
+    type = "response"
+) > 0.5
+logistic_preds_second <- predict(
+    logistic_fit_second, 
+    newdata = bos[!bos$train3, ],
+    type = "response"
+) > 0.5
+```
+
+Taking a look at the confusion matrices for the first and second models, we see: 
+```{r}
+table(logistic_preds_first, bos$crimeful[!bos$train3])
+table(logistic_preds_second, bos$crimeful[!bos$train3])
+```
+
+The model accuracies are then given by: 
+```{r}
+cat(
+    "Model 1 Accuracy: ", 
+    round(100*mean(logistic_preds_first == bos$crimeful[!bos$train3]), 2), 
+    "% (crimeful ~ zn + nox + rad)", "\n", 
+    "Model 2 Accuracy: ", 
+    round(100*mean(logistic_preds_second == bos$crimeful[!bos$train3]), 2), 
+    "% (crimeful ~ zn + nox + rad + tax)", sep = ""
+)
+```
+
+After having run this a few times, the model accuracies have fluctuated between 75% and 90%, with both accuracies being about equal. Because of this, for other modeling techniques we will use the first model which excludes the `tax` variable for the sake of simplicity. 
+
+**LDA**
+
+We will now use Linear Discriminant Analysis to fit the data using the formula from above. We will assess its accuracy as compared to logistic regression, keeping in mind that with a small test set randomly sampled (just over 100 points), the accuracy will fluctuate and may not represent the actual accuracy given a larger data set. 
+
+```{r}
+lda_fit <- lda(
+    crimeful ~ zn + nox + rad, 
+    data = bos, subset = bos$train3
+)
+lda_preds <- predict(
+    object = lda_fit, 
+    newdata = bos[!bos$train3, ]
+)
+lda_preds <- lda_preds$class
+table(lda_preds, bos$crimeful[!bos$train3]) # Confusion Matrix
+cat("LDA Model Accuracy: ", 
+    round(100*mean(lda_preds == bos$crimeful[!bos$train3]), 2), "%", sep = ""
+)
+```
+
+We can see that the LDA model performs practically identically to the Logistic Regression model. 
+
+**QDA**
+
+Now we do the same thing as with LDA, but replace all the L's with Q's: 
+```{r}
+qda_fit <- qda(
+    crimeful ~ zn + nox + rad, 
+    data = bos, subset = bos$train3
+)
+qda_preds <- predict(
+    object = qda_fit, 
+    newdata = bos[!bos$train3, ]
+)
+qda_preds <- qda_preds$class
+table(qda_preds, bos$crimeful[!bos$train3]) # Confusion Matrix
+cat("QDA Model Accuracy: ", 
+    round(100*mean(qda_preds == bos$crimeful[!bos$train3]), 2), "%", sep = ""
+)
+```
+
+Quadratic Discriminant Analysis proves to be *slightly* more accurate than Logistic Regression or LDA, taken of course with a grain of salt knowing that accuracies will fluctuate based on the random sampling used for the training/test data. 
+
+**Naive Bayes**
+
+Same thing as LDA and QDA, we can use the same process with the same syntax to calculate the naive Bayes classification on this set along with its accuracy: 
+```{r}
+nb_fit <- naiveBayes(
+    crimeful ~ zn + nox + rad, 
+    data = bos, subset = bos$train3
+)
+nb_preds <- predict(
+    object = nb_fit, 
+    newdata = bos[!bos$train3, ]
+)
+table(nb_preds, bos$crimeful[!bos$train3]) # Confusion Matrix
+cat("Naive Bayes Model Accuracy: ", 
+    round(100*mean(qda_preds == bos$crimeful[!bos$train3]), 2), "%", sep = ""
+)
+```
+
+Naive Bayes has approximately the same test accuracy as Quadratic Discriminant Analysis, which, again, could be due in part to sampling variability in the train-test split. 
+
+**KNN Classifier**
+
+We'll now look at the performance of a KNN classifier on our data. We will look at a few different values of $k$: 
+
+```{r}
+train.X <- bos %>% filter(train3) %>% select(zn, nox, rad)
+test.X <- bos %>% filter(!train3) %>% select(zn, nox, rad)
+train.Y <- bos %>% filter(train3) %>% pull(crimeful)
+
+knn_1_preds <- knn(train.X, test.X, train.Y, k=1)
+knn_3_preds <- knn(train.X, test.X, train.Y, k=3)
+knn_5_preds <- knn(train.X, test.X, train.Y, k=5)
+
+cat("### K-Nearest Neighbor Model Accuracy ### \n", 
+    "K=1: ", round(100*mean(knn_1_preds == bos$crimeful[!bos$train3]), 2), "%\n", 
+    "K=3: ", round(100*mean(knn_3_preds == bos$crimeful[!bos$train3]), 2), "%\n", 
+    "K=5: ", round(100*mean(knn_5_preds == bos$crimeful[!bos$train3]), 2), "%\n", 
+    sep = ""
+)
+```
+
+The accuracy of the KNN classifier is extremely high compared to the other classification methods with this given set of predictors.
