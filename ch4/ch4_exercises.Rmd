@@ -67,6 +67,8 @@ $$
 \end{aligned}
 $$
 
+\clearpage
+
 ## Applied Exercise 16
 
 Using the `Boston` data set, fit classification models in order to predict whether a given census tract has a crime rate above or below the median. Explore logistic regression, LDA, naive Bayes, and KNN models using various subsets of the predictors. Describe your findings. 

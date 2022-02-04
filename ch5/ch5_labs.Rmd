@@ -1,0 +1,34 @@
+---
+title: "Chapter 5 Labs"
+output: 
+    github_document: 
+        toc: true
+---
+
+```{r setup, include = F}
+# Set Chunk Options
+knitr::opts_chunk$set(echo = TRUE)
+ 
+# Load Packages
+if(!require(tidyverse)) {install.packages("tidyverse")};    library(tidyverse)
+if(!require(knitr))     {install.packages("knitr")};        library(knitr)
+if(!require(ISLR2))     {install.packages("ISLR2")};        library(ISLR2)
+if(!require(MASS))      {install.packages("MASS")};         library(MASS)
+```
+
+## The Validation Set Approach
+
+
+
+## Leave-One-Out Cross-Validation
+
+
+
+## k-fold Cross-Validation
+
+
+
+## The Bootstrap
+
+
+
