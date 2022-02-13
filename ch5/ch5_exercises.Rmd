@@ -8,9 +8,9 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(MASS)
 library(tidyverse)
 library(ISLR2)
+library(boot)
 set.seed(1)
 ```
 
@@ -113,14 +113,109 @@ h.
     }
     mean(store)
     ```
-    Across $n$ going from 1 to 10,000, the average proportion of samples for which the fourth observation is contained in the bootstrap sample is roughly equal to $1-1/e$
+    Across $n$ going from 1 to 10,000, the average proportion of samples for which the fourth observation is contained in the bootstrap sample is roughly equal to $1-1/e$.
 
 
 \clearpage
 
 ## Applied Exercise 9
 
+We will now consider the `Boston` housing data set, from the ISLR2 library. 
 
+a. 
+    Based on this data set, provide an estimate for the population mean of `medv`. Call this $\hat\mu$. 
+
+b. 
+    Provide an estimate of the standard error of $\hat\mu$. Interpret this result. 
+    
+    *Hint: We can compute the standard error of the sample mean by dividing the sample standard deviation by the square root of the number of observations.*
+
+c. 
+    Now estimate the standard error of $\hat\mu$ using bootstrap. How does this compare to your answer from (b)?
+
+d. 
+    Based on your bootstrap estimate from (c), provide a 95% confidence interval for the mean of `medv`. Compare it to the results obtained using `t.test(Boston$medv)`.
+    
+    Hint: You can approximate a 95% confidence interval using the formula $[\hat\mu - 2SE(\hat\mu), \hat\mu + 2SE(\hat\mu)]$.
+    
+e. 
+    Based on this data set, provide an estimate, $\hat\mu_{med}$, for the median value of `medv` in the population. 
+
+f. 
+    We would now like to estimate the standard error of $\mu_{med}$. Unfortunately, there is no simple formula for computing the standard error of the median. Instead, estimate the standard error of the median using the bootstrap. Comment on your findings. 
+    
+g. 
+    Based on this data set, provide an estimate for the tenth percentile of `medv` in Boston census tracts. Call this quantity $\hat\mu_{0.1}$. (You can use the `quantile()` function.)
+    
+h. 
+    Use the bootstrap to estimate the standard error of $\hat\mu_{0.1}$. Comment on your findings. 
 
 ### Solution
 
+```{r}
+attach(ISLR2::Boston)
+```
+
+a. 
+    ```{r}
+    (mu_hat_medv <- mean(medv))
+    ```
+
+b. 
+    ```{r}
+    (se_mu_hat_medv <- sd(medv)/sqrt(length(medv)))
+    ```
+
+c. 
+    ```{r}
+    mu_hat <- function(data, index) {
+        X <- data[index]
+        return (mean(X))
+    }
+    set.seed(1)
+    boot(medv, mu_hat, R=1000)
+    ```
+    So the estimate for our standard error for the mean is 0.410, which is very close to our formula-calculated standard error of 0.408. 
+    
+d. 
+    95% CI from the bootstrap estimate: 
+    ```{r}
+    cat(mu_hat_medv - 2*0.41066, mu_hat_medv + 2*0.41066)
+    ```
+    t-test confidence interval: 
+    ```{r}
+    t.test(medv)$conf.int[1:2]
+    ```
+    These confidence intervals are very similar since the standard error estimates are also very similar. 
+    
+e. 
+    ```{r}
+    median(medv)
+    ```
+
+f.  
+    ```{r}
+    mu_hat_med <- function(data, index){
+        X <- data[index]
+        return(median(X))
+    }
+    set.seed(1)
+    boot(medv, mu_hat_med, R=1000)
+    ```
+    We can see based on the bootstrap that $\text{SE}(\hat\mu_{med}) = 0.3778075$. This is a lower value than we got from the standard error for the mean, implying that it could potentially be a better measure of center than the mean for this distribution. 
+    
+g. 
+    ```{r}
+    quantile(medv, probs = 0.1)
+    ```
+
+h. 
+    ```{r}
+    mu_hat_0.1 <- function(data, index) {
+        X <- data[index]
+        return(quantile(X, 0.1))
+    }
+    set.seed(1)
+    boot(medv, mu_hat_0.1, R=1000)
+    ```
+    The standard error of the tenth percentile for the `medv` variable is 0.4767526. This is on the same order as the other standard errors we found (mean and median), though it is higher. I have no good intuition of what would happen to the standard error as you decreased the quantile either down to zero or up to 100, as  you would essentially be estimating the min/max of the bootstrap data set at that point. 
