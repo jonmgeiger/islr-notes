@@ -1,2 +1,3 @@
 # Ignore RHistory files
 *.Rhistory
+*.RData
