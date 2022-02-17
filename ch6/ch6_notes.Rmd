@@ -1,0 +1,125 @@
+---
+title: "Chapter 6 Notes: Linear Model Selection and Regularization"
+subtitle: "Statistical Learning with R"
+author: "Jon Geiger"
+date: \today
+output: pdf_document
+geometry: margin=1in
+---
+
+While the standard linear model, $Y = \beta_0 + \beta_1 X + \cdots + \beta_p X_p + \epsilon$, is very useful for problems of inference and even prediction, but there are improvements which can be made. 
+
+Alternative models can offer better *prediction accuracy* and *model interpretability*: 
+
+- If $n \gg p$, a linear model will have very low variance (deviation in the model's behavior from one set to the next). However, if $p$ is comparable to $n$, or worse, $p > n$, the variance can be very high or even *infinite*
+
+- It's easiest to interpret a model with only relevant variables. Since least squares coefficients are almost never *exactly* zero, we need to compensate by selecting the variables we use very carefully, using **feature selection** or **variable selection**. 
+
+This chapter looks at three alternatives to using least squares to fit a model: 
+
+1. **Subset Selection**: identifying a subset of the $p$ predictors which we believe to be related to the response, then fitting least squares on that set. 
+2. **Shrinkage**: fitting a model involving all $p$ predictors, then shrinking the estimated coefficients relative to the least squares estimates. This is also known as **regularization**. Because this shrinks coefficients, it can estimate some to be almost exactly zero, so this method also performs a form of automatic variable selection. 
+3. **Dimension Reduction**: involves projecting the $p$ predictors into an $M$-dimensional subspace, where we have $M$ different linear combinations of the variables. We then use these projections to fit a regression model. 
+
+## 6.1: Subset Selection
+
+The **Best Subset Selection** method fits a linear model for each possible combination of predictors, so $2^p$ total models will be fit. This is done by the following algorithm: 
+
+1. Let $\mathcal{M}_0$ denote the *null model*, which contains no predictors. This model just predicts the sample mean for each observation ($\beta_0 = \bar y$)
+2. For $k = 1, 2, \ldots, p$: 
+    a. Fit all $\binom{p}{k}$ models that contain exactly $k$ predictors. 
+    b. Pick the best among these $\binom{p}{k}$ models, and call it $\mathcal{M}_k$. Here *best* is defined as having the smallest RSS, or equivalently largest $R^2$. 
+3. Select a single best model from among $\mathcal{M}_0, \ldots, \mathcal{M}_p$ using cross-validated prediction error, $C_p$ (AIC), BIC, or adjusted $R^2$. 
+
+We cannot use RSS or $R^2$ to select from the $p+1$ models because these values improve monotonically with more predictors. So we must use some other method for choosing the "best" model. In other words, increasing the number of predictors will always decrease the training set error, but we care about the test set error. 
+
+For something such as logistic regression, instead of ordering models by RSS in Step 2 of the algorithm, we would use *deviance*, which is negative two times the maximized log-likelihood. 
+
+Generally, best subset selection is very computationally intensive, since if $p=20$, we would need to fit over a million models. 
+
+***
+
+**Stepwise Selection** is a much more computationally efficient process which only fits a fraction of the models which Best Subset Selection uses. 
+
+The *Forward Stepwise Selection* algorithm is as follows: 
+
+1. Let $\mathcal{M}_0$ denote the null model, containing no predictors. 
+2. For all $k = 0, \ldots, p-1$: 
+    a. Consider all $p-k$ models that augment the predictors in $\mathcal{M}_k$ with one additional predictor. 
+    b. Choose the *best* among these $p-k$ models, and call it $\mathcal{M}_{k+1}$. Here *best* is defined as smallest RSS or highest $R^2$. 
+3. Select a single best model from among $\mathcal{M}_0, \ldots, \mathcal{M}_p$ using $C_p$ (AIC), BIC, or adjusted $R^2$. 
+
+This process essentially starts out with a model with no predictors, then adds the best predictor on top of that. Then another predictor is placed on top of that, and so on. Then, out of all the $p+1$ models with $0, \ldots, p$ predictors, the best model is chosen. 
+
+The *Backward Stepwise Selection* algorithm is as follows: 
+
+1. Let $\mathcal{M}_p$ denote the full model, containing all $p$ predictors. 
+2. For all $k =  p, p-1, \ldots, 1$: 
+    a. Consider all $k$ models that contain all but one of the predictors in $\mathcal{M}_k$, for a total of $k-1$ predictors.
+    b. Choose the *best* among these $k$ models, and call it $\mathcal{M}_{k-1}$. Here *best* is defined as smallest RSS or highest $R^2$. 
+3. Select a single best model from among $\mathcal{M}_0, \ldots, \mathcal{M}_p$ using $C_p$ (AIC), BIC, or adjusted $R^2$. 
+
+This is the same as forward stepwise selection, but it begins with a full model and works its way backwards. 
+
+***
+
+Generally, the training error is a poor estimate of the test error. We can either *adjust* the training error to account for bias, or we can directly estimate the test error using cross-validation. 
+
+Estimating the test error without a cross-validation method involves calculating several estimates. These are: $C_p$, *Akaike information criterion* (AIC), *Baysian information criterion* (BIC), and *ajusted $R^2$*. 
+
+For a least squares model containing $d$ predictors with $n$ observations, we have: 
+
+- $\displaystyle C_p = \frac{1}{n}(\text{RSS} + 2d\hat\sigma^2)$ \\ The $C_p$ adds a penalty of $2d\hat\sigma^2$ to the training RSS to adjust for the underestimation of the test error. It turns out that if $\hat\sigma^2$ is an unbiased estimator of $\sigma^2$. We select the model with the lowest $C_p$ value. 
+
+- $\displaystyle \text{AIC} = \frac{1}{n}(\text{RSS} + 2d\hat\sigma^2)$ \\ The AIC is defined for a large class of models fit by maximum likelihood with Gaussian errors. In this case, the AIC is proportional to $C_p$, where constants are irrelevant due to minimization. 
+
+- $\displaystyle \text{BIC} = \frac{1}{n}(\text{RSS} + \log(n)d\hat\sigma^2)$ \\ The BIC is derived from a Bayesian point of view, but gives a larger penalty to models with larger amounts of variables, so results in smaller model selections. 
+
+- $\displaystyle \text{Adjusted }R^2 = 1 - \frac{\text{RSS}/(n-d-1)}{\text{TSS}/(n-1)}$ \\ Where normal $R^2$ is defined as $1-\text{RSS}/\text{TSS}$, the adjusted $R^2$ takes into account the ratio of the number of predictors to the number of observations. In other words, adjusted $R^2$ will decrease with noise predictors, or predictors that add to $d$ while only causing a small decrease in the RSS. The best model should be that which maximizes the Adjusted $R^2$. 
+
+Alternatively, the test error can be directly estimated using cross-validation. This used to be computationally prohibitive, but with modern computing power this is becoming a more attractive option. 
+
+Models can be selected using the *one-standard-error rule*. This rule says that we calculate the standard error of the test MSE for each model size, then select the smallest model for which the estimated test error is within one standard error of the lowest point on the curve. The rationale for this is that if models seem to be roughly equally good, we might as well choose the simplest model. 
+
+## 6.2: Shrinkage Methods
+
+As an alternative to just choosing a subset of predictors (6.1), we can fit a model which contains all $p$ predictors and *constrains* or *regularizes* the coefficient estimates towards zero. Recall that: 
+
+$$\text{RSS} = \sum_{i=1}^{n}\left(y_i - \beta_0 - \sum_{j=1}^{p} \beta_j x_{ij}\right)^2$$
+
+Least squares involves choosing parameters which minimize the RSS. In **Ridge Regression**, the ridge regression coefficient estimates $\hat\beta^R$ are the values which maximize: 
+$$\text{RSS} + \lambda \sum_{j=1}^p \beta_j^2$$
+where $\lambda \ge 0$ is a tuning parameter, determined separately. The second term here is called a *shrinkage penalty*, and is smallest when $\beta_1, \ldots, \beta_p$ are all close to zero. The tuning parameter $\lambda$, then, controls the impact that the second term has on estimating the regression coefficients. Ridge regression will estimate coefficients $\hat\beta^R$ for each value of $\lambda$, and selecting a good value of $\lambda$ will yield a better test MSE.
+
+If $\hat\beta$ is the vector of least squares coefficient estimates, then $||\hat\beta||$ is the magnitude or *norm* of this vector, and we call $||\hat\beta||_2$ is the *$\ell_2$ norm*, and is defined as $||\hat\beta||_2 = \sqrt{\sum_{j=1}^p \hat\beta_j^2}$, and the $\ell_2$ norm of the ridge regression coefficients are defined similarly. As the tuning parameter increases, the ratio of $||\hat\beta_\lambda^R||_2/||\hat\beta||_2$ will decrease. In other words, the parameters will generally decrease in magnitude as the tuning parameter is increased. 
+
+In standard least squares, coefficients are *scale invariant*, in that if each $X_j$ is multiplied by some constant $c$, the coefficient will simply be multiplied by $1/c$ to compensate. This is not the case with ridge regression. Because of this, we need to make sure that all the predictors are on the same scale, so we standardize them using the formula: 
+$$\tilde x_{ij} = \frac{x_{ij}}{\sqrt{\frac{1}{n}\sum_{i=1}^n (x_{ij} - \bar x_j)^2}}$$
+where the denominator of the fraction is the estimated standard deviation of the $j$th predictor. This means that all the standardized predictors will have a standard deviation of one. 
+
+In terms of bias-variance trade-off, ridge regression decreases variance at the cost of increasing bias. This is because from set to set, the coefficients will generally be smaller, so the variability in the coefficients will also be smaller. 
+
+***
+
+The **Lasso** is another alternative to simple linear regression, which overcomes the interpretive difficulty of not being able to fully eliminate some variables from the model. With the RSS as the same quantity as with ridge regression, the lasso coefficients, $\hat\beta_\lambda^L$ minimize the quantity 
+$$\text{RSS} + \lambda \sum_{j=1}^p|\beta_j|$$
+The lasso and ridge regression are similar, but the lasso uses the $\ell_1$ norm rather than the $\ell_2$ norm, where the $\ell_1$ norm of a coefficient vector $\beta$ is given by $||\beta||_1 = \sum|\beta_j|$. With the tuning parameter $\lambda$ sufficiently large, some coefficients will be exactly equal to zero. This creates a *sparse model*, which is a model which includes only a subset of the variables. 
+
+Because the lasso also serves as a model selection technique, it implicitly assumes that a number of the features have coefficients exactly equal to zero. This assumption is not always a good one, but in the case where there are certain features with low correlation, it can be useful to eliminate them completely. Neither regression technique always dominates the other. 
+
+Generally, ridge regression performs better with many predictors, and the lasso performs better with a smaller number of predictors. 
+
+*** 
+
+*Selecting the Tuning Parameter* $\lambda$ can be a tricky problem. Cross-validation allows us to choose a grid of $\lambda$ values and compute the CV error for each value of $\lambda$ as described in Chapter 5. Then, we'll select the value of $\lambda$ for which the CV error is minimized, then re-fit the model using all available observations and the selected value of the tuning parameter. 
+
+This is highly important for determining which variables are *noise* and which are *signal*. The lasso does an excellent job at picking out variables which are actually significant without picking up variables which just add noise. See Figure 6.13 in the textbook (p. 251).
+
+## 6.3: Dimension Reduction Methods
+
+
+
+## 6.4: Considerations in High Dimensions
+
+
+
