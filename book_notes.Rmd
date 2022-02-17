@@ -65,3 +65,9 @@ Sub-sections (e.g. Chapter 2.1.3) are separated with horizontal lines (created w
 # Chapter 5: Resampling Methods
 ```{r child = 'ch5/ch5_notes.Rmd'}
 ```
+
+\clearpage
+
+# Chapter 6: Linear Model Selection and Regularization
+```{r child = 'ch6/ch6_notes.Rmd'}
+```
