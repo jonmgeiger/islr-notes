@@ -65,7 +65,7 @@ This is the same as forward stepwise selection, but it begins with a full model 
 
 Generally, the training error is a poor estimate of the test error. We can either *adjust* the training error to account for bias, or we can directly estimate the test error using cross-validation. 
 
-Estimating the test error without a cross-validation method involves calculating several estimates. These are: $C_p$, *Akaike information criterion* (AIC), *Baysian information criterion* (BIC), and *ajusted $R^2$*. 
+Estimating the test error without a cross-validation method involves calculating several estimates. These are: $C_p$, *Akaike information criterion* (AIC), *Bayesian information criterion* (BIC), and *adjusted $R^2$*. 
 
 For a least squares model containing $d$ predictors with $n$ observations, we have: 
 
@@ -117,9 +117,93 @@ This is highly important for determining which variables are *noise* and which a
 
 ## 6.3: Dimension Reduction Methods
 
+Let $Z_1, Z_2, \ldots, Z_M$ represent $M < p$ linear combinations of our original $p$ predictors. That is, 
+$$Z_m = \sum_{j=1}^p \phi_{jm} X_j$$
 
+for some constraints $\phi_{1m}, \phi_{2m}, \ldots, \phi_{pm}$, for $m = 1, \ldots, M$. In other words, the $Z_m$ are the new, transformed predictors that we can use to fit our model with. We can then fit the linear regression model 
+$$y_i = \theta_0 + \sum_{m=1}^M \theta_m z_{im} + \epsilon_i, \quad i = 1, \ldots, n$$
+using least squares. The regression coefficients for reduced dimensionality are given by $\theta_0, \theta_1, \ldots, \theta_M$. Rather than fitting a model with $p$ predictors in $X$ space, we fit a model with $M$ predictors in $Z$ space. We can notice that: 
+$$\sum_{m=1}^M \theta_m z_{im} = \sum_{m=1}^M \theta_m \sum_{j=1}^p \phi_{jm}x_{ij} = \sum_{j=1}^p \sum_{m=1}^M \theta_m \phi_{jm}x_{ij} = \sum_{j=1}^p \beta_j x_{ij}$$
+where 
+$$\beta_j = \sum_{m=1}^M \theta_m \phi_{jm}$$
+So we can treat this as a special case of linear regression. When $p > n$, selecting a value of $M \ll p$ can significantly reduce variance of the final model.
+
+Choosing $Z_1, Z_2, \ldots, Z_M$, or choosing $\phi_{jm}$'s, can be done in different ways. We'll look at *principal components* and *partial least squares*. 
+
+***
+
+Principal Components Analysis (PCA) is useful for transforming a large number of features into a small number. 
+
+The **First Principal Component** direction of the data is that along which the observations *vary the most*. In other words, if the points were projected onto the line, and the variance along that line were measured, it would be maximized. This is also the line which is *as close as possible* to the data. 
+
+The **Second Principal Component** direction must be orthogonal to that of the first principal component. Similarly, this is such that the variance of the projected data on this component will be maximized. 
+
+**Principal Components Regression** involves taking the first $M$ principal components and using those components as predictors in a linear regression model fit using least squares. 
+
+- We assume that *the directions in which $X_1, \ldots, X_p$ show the most variation are the directions that are associated with $Y$*. This turns out to be a pretty good approximation in most cases. 
+
+- We mitigate overfitting by being able to fit a model on fewer predictors since most or all of the information is contained within $Z_1, \ldots, Z_M$. 
+
+- For analyzing model performance, plots of variance, squared bias, and test MSE versus number of components are useful. 
+
+- When $M=p$, PCR just results in regular multiple linear regression. 
+
+- PCR is *not* guaranteed to outperform ridge regression or lasso, but can perform well if most of the data is described by a low number of principal components. 
+
+- PCR is *not* a feature selection method, and is very closely related to ridge regression, and (allegedly) ridge regression can even be thought of "as a continuous version of PCR." (consult section 3.5 of ESL for more detail)
+
+- PCR is an *unsupervised* technique because the response $Y$ is *not used* to determine the directions of the principal components. 
+
+***
+
+**Partial Least Squares** is a *supervised* alternative to PCR which *does* use the response to form new predictors. Similar to PCR, we compute the PLS directions in order to perform regression. 
+
+- After standardizing the predictors, PLS computes the first direction $Z_1$ by setting each $\phi_{j1}$ equal to the coefficient from the simple linear regression of $Y$ onto each $X_j$. That is, simple linear regression is performed for each predictor individually for $Y$. 
+
+- In computing $Z_1 = \sum_{j=1}^p \phi_{j1} X_j$, PLS places the highest weight on the variables that are most strongly related to the response. 
+
+- "To identify the second PLS direction we first *adjust* each of the variables for $Z_1$, by regressing each variable on $Z_1$ and taking *residuals*. These residuals can be interpreted as the remaining information that has not been explained by the first PLS direction. We the compute $Z_2$ using this *orthogonalized* data in exactly the same fashion as $Z_1$ was computed based on the original data."
+
+- Once $Z_1, \ldots, Z_M$ are computed, we use least squares to fit a linear model to predict $Y$ the same way as in PCR. As with PCR, the value of $M$ is chosen by cross-validation. We standardize the predictors and response before performing PLS. 
+
+- PLS can reduce bias, but it has the potential to increase variance, so typically, PCR is used in the place of PLS. 
 
 ## 6.4: Considerations in High Dimensions
 
+With advances in technology over the past 20 years, it is commonplace to collect an extremely high amount of feature measurements ($p$ very large), whereas the number of observations $n$ is limited due to cost, availability, or other considerations. Two examples are as follows: 
 
+1. Rather than predicting blood pressure based on age, sex, and BMI, one might also collect measurements for half a million individual DNA mutations common to the population (SNPs). In this case, $n \approx 200$ and $p \approx 500,000$. 
 
+2. A marketing analyst might look at the words which appear in an individual user's search history. For a given user, each of the $p$ search terms is scored present (0) or absent (1), creating a huge feature vector. If information is gathered for 1000 people, then $n = 1000$ and $p$ is incredibly large, equal to the number of words in the digital lexicon being used. 
+
+If a data set has $p > n$, it is classified as *high-dimensional*. 
+
+***
+
+If data is high-dimensional, least squares regression should not be performed. With $p \ge n$, least squares will always form a perfect fit to the training data, with zero variance. This is overfitting and we need to consider other methods for fitting data such as shrinkage methods and dimension reduction methods. 
+
+In high dimensions, as the number of variables increases to $p \approx n$, the value of $R^2$ tends to 1, the training MSE tends to zero, and the test MSE increases at an incredible rate due to it being incredibly biased. 
+
+*** 
+
+When performing regression with high-dimensional data, it is useful to fit *less flexible* least squares models, such as using forward stepwise selection, ridge regression, lasso, and PCR. 
+
+As an example, when performing lasso with $p=20$ features, a relatively low value of $\lambda$ can be chosen to minimize the test MSE. However, when we have many more features not contributing any useful information, a relatively high value of $\lambda$ should be chosen to scale down or eliminate the noise variables. 
+
+There are three main important points about regression in high dimensional data: 
+
+1. Regularization or shrinkage plays a key role in high-dimensional problems
+
+2. Appropriate tuning parameter selection is crucial for good predictive performance
+
+3. The test error tends to increase as the dimensionality of the problem increases, unless the additional features are truly associated with the response. This is known as the *curse of dimensionality*. 
+
+In general, *adding additional signal features that are truly associated with the response will improve the fitted model*. However, adding noise will lead to deterioration in the fitted model and an increased test set error. 
+
+***
+
+*Multicollinearity* is a *huge* problem in high-dimensional data, since any feature can basically be written as a linear combination of other features. 
+
+In the case of having half-a-million SNPs, we might conclude from forward stepwise selection that 17 of those SNPs lead to a good predictive model on the training data. This just means that those 17 form one good model out of many possible models. 
+
+Reporting errors is also difficult with high-dimensional data, as we've seen that it's very easy to get a useless model with zero residuals, and thus SSE, p-values, and $R^2$ values should not be used. Because of this, it's very important to use a cross-validation set and calculate independent test MSE. Test MSE or $R^2$ is a valid measure of model fit, but training MSE is not. 
