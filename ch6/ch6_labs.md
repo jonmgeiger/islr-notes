@@ -576,7 +576,7 @@ y <- Hitters$Salary
 
 `glmnet()`’s `alpha` argument determines what type of model is fit. If
 `alpha = 0`, then a ridge regression model is fit. If `alpha = 1`, then
-a lass model is fit.
+a lasso model is fit.
 
 Let’s fit a bunch of ridge regression models with 100 different values
 of lambda ranging from 10<sup>10</sup> to 10<sup>−2</sup>. `glmnet()`
