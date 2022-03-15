@@ -71,3 +71,9 @@ Sub-sections (e.g. Chapter 2.1.3) are separated with horizontal lines (created w
 # Chapter 6: Linear Model Selection and Regularization
 ```{r child = 'ch6/ch6_notes.Rmd'}
 ```
+
+\clearpage
+
+# Chapter 8: Tree-Based Methods
+```{r child = 'ch8/ch8_notes.Rmd'}
+```
