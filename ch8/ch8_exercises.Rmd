@@ -14,6 +14,8 @@ library(tree)
 library(randomForest)
 library(gbm)
 library(BART)
+library(pls)
+library(glmnet)
 ```
 
 ## Conceptual Exercise 5
@@ -48,7 +50,171 @@ This approach has the opposite classification as the majority vote approach. Thi
 
 ## Applied Exercise 10
 
+We now use boosting to predict `Salary` in the `Hitters` data set. 
 
+(a) 
+    Remove the observations for whom the salary information is unknown, and then log-transform the salaries. 
+
+(b)
+    Create a training set consisting of the first 200 observations, and a test set consisting of the remaining observations. 
+
+(c)
+    Perform boosting on the trianing set with 1,0000 trees for a range of values of the shrinkage parameter $\lambda$. Produce a plot with different shrinkage values on the $x$-axis and the corresponding training set MSE on the $y$-axis.
+    
+(d)
+    Produce a plot with the different shrinkage values on the $x$-axis and the corresponding test set MSE on the $y$ axis. 
+
+(e)
+    Compare the test MSE of boosting to the test MSE that results from applying two of the regression approaches seen in Chapters 3 and 6. 
+    
+(f)
+    Which variables appear to be the most important predictors in the boosted model? 
+
+(g)
+    Now apply bagging to the training set. What is the test MSE for this approach?
 
 ### Solution
 
+(a)
+    ```{r}
+    names(Hitters)
+    sum(is.na(Hitters$Salary))
+    Hitters_noNA <- Hitters %>%
+        filter(!is.na(Salary)) %>%
+        mutate("logSalary" = log(Salary)) %>%
+        select(-Salary)
+    ```
+
+(b)
+    ```{r}
+    train <- 1:200
+    hitters_train <- Hitters_noNA[train, ]
+    hitters_test  <- Hitters_noNA[-train, ]
+    ```
+
+(c)
+    ```{r}
+    lambdas <- 10^seq(-3, -1, length.out = 100)
+    
+    train_MSE <- c()
+    test_MSE  <- c()
+    
+    for(lambda in lambdas) {
+        boost <- gbm(logSalary ~ ., 
+                     data = hitters_train, 
+                     distribution = "gaussian", 
+                     n.trees = 1000, 
+                     shrinkage = lambda, 
+                     interaction.depth = 1)
+        train_MSE <- c(
+            train_MSE, 
+            mean((predict(boost, hitters_train, n.trees = 1000) - 
+                      hitters_train$logSalary)^2)
+        )
+        test_MSE <- c(
+            test_MSE, 
+            mean((predict(boost, hitters_test, n.trees = 1000) - 
+                      hitters_test$logSalary)^2)
+        )
+    }
+    plot(x = lambdas, y = train_MSE, 
+         type = "b")
+    abline(v = lambdas[which.min(train_MSE)], col = "red")
+    abline(h = min(train_MSE), col = "red")
+    ```
+    As expected, the training MSE decreases with a higher shrinkage value. If we increase the number of trees, this should have the same effect.
+
+(d)
+    We can now plot the test MSE versus $\lambda$ to reveal the best value: 
+    ```{r}
+    bestlambda <- lambdas[which.min(test_MSE)]
+    plot(x = lambdas, y = test_MSE, 
+             type = "b")
+    abline(v = bestlambda, col = "red")
+    abline(h = min(test_MSE), col = "red")
+    
+    cat("Best lambda = ", bestlambda, "\n", 
+        "MSE at best lambda = ", min(test_MSE), 
+        sep = "")
+    ```
+
+(e)
+    We'll compare this boosted MSE to a test mse from a Lasso model as well as a Partial Least Squares model. We'll start with PLS: 
+    ```{r}
+    pls_fit <- plsr(logSalary ~ ., 
+                    data = hitters_train,
+                    scale = TRUE, 
+                    validation = "CV")
+    validationplot(pls_fit, val.type = "MSEP")
+    
+    pls_pred <- predict(pls_fit, 
+                        hitters_test, 
+                        ncomp = 1)
+    cat("MSE for PLS model with M=1: ", 
+        mean((pls_pred - hitters_test$logSalary)^2), 
+        sep = "")
+    ```
+    This is a higher MSE than any of the possible MSEs from the boosting model, even with very low values of $\lambda$. We'll now try a lasso model: 
+    ```{r}
+    grid <- 10^seq(10, -2, length = 100)
+    
+    
+    Xtrain <- model.matrix(logSalary ~ .,
+                           hitters_train)
+    Xtest  <- model.matrix(logSalary ~ ., 
+                           hitters_test)
+    ytrain <- hitters_train$logSalary
+    ytest <- hitters_test$logSalary
+    
+    lasso_fit <- glmnet(Xtrain, ytrain, 
+                        alpha = 1, 
+                        lambda = grid)
+    lasso_cv <- cv.glmnet(Xtrain, ytrain, alpha = 1)
+    plot(lasso_cv)
+    bestlam <- lasso_cv$lambda.min
+    lasso_pred <- predict(lasso_fit, s = bestlam, 
+                          newx = Xtest)
+    mean((lasso_pred - ytest)^2)
+    ```
+    This MSE is comparable to that from PLS, but still significantly higher than that from the boosting model.
+    
+(f)
+    ```{r}
+    boost <- gbm(logSalary ~ ., 
+                 data = hitters_train, 
+                 distribution = "gaussian", 
+                 n.trees = 1000, 
+                 shrinkage = bestlambda, 
+                 interaction.depth = 1)
+    summary(boost)
+    ```
+    From the relative influence table above, we can see that the number of Career at-bats and the Career Hits have the most influence/importance in the boosting model. This makes good sense, because if we are to interpret this as a sort of inference problem, it would make sense that the salary of a baseball player would depend on their career, because generally, players with very long careers have performed very well and typically have high salaries. 
+
+(g)
+    We will now create a bagged model on the same data, using the `randomForest()` function with $m=p$, which in this case should be 19. 
+    ```{r}
+    p = length(names(hitters_train))-1
+    
+    bag_fit <- randomForest(logSalary ~ ., 
+                            data = hitters_train, 
+                            mtry = p, 
+                            importance = TRUE)
+    bag_pred <- predict(bag_fit, 
+                        newdata = hitters_test)
+    plot(bag_pred, ytest)
+    abline(0, 1)
+    mean((bag_pred - ytest)^2)
+    ```
+    This MSE is lower than that from the boosted model. Now, for fun, let's try a random forest with $m=6$ predictors: 
+    ```{r}
+    rf_fit <- randomForest(logSalary ~ ., 
+                            data = hitters_train, 
+                            mtry = 6, 
+                            importance = TRUE)
+    rf_pred <- predict(rf_fit, 
+                        newdata = hitters_test)
+    plot(rf_pred, ytest)
+    abline(0, 1)
+    mean((rf_pred - ytest)^2)
+    ```
+    The random forest model yields the lowest MSE out of any model we've tried thus far. This makes sense, because there are two variables which have high importance, as we saw in part (f), so random forests are able to decorrelate the trees from always starting with the same two splits. 
