@@ -1,0 +1,37 @@
+---
+title: "Chapter 7 Notes: Moving Beyond Linearity"
+subtitle: "Statistical Learning with R"
+author: "Jon Geiger"
+date: \today
+output: pdf_document
+geometry: margin=1in
+---
+
+## 7.1: Polynomial Regression
+
+
+
+## 7.2: Step Functions
+
+
+
+## 7.3: Basis Functions
+
+
+
+## 7.4: Regression Splines
+
+
+
+## 7.5: Smoothing Splines
+
+
+
+## 7.6: Local Regression
+
+
+
+## 7.7: Generalized Additive Models
+
+
+

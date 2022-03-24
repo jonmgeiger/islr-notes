@@ -1,0 +1,23 @@
+---
+title: "Chapter 7 Labs: Moving Beyond Linearity"
+output: 
+    github_document: 
+        toc: true
+---
+
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ISLR2)
+```
+
+## Polynomial Regression and Step Functions
+
+
+
+## Splines
+
+
+
+## GAMs
+

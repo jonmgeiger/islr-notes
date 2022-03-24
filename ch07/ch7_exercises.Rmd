@@ -1,0 +1,32 @@
+---
+title: "Chapter 7 Exercises: Moving Beyond Linearity"
+subtitle: "Statistical Learning with R"
+author: "Jon Geiger"
+date: \today
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ISLR2)
+```
+
+## Conceptual Exercise 
+
+
+
+### Solution
+
+
+
+\clearpage
+
+## Applied Exercise
+
+
+
+### Solution
+
+
+
