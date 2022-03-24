@@ -13,25 +13,27 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Tentative Schedule
 
-**Week 1**: Chapter 1
+Winter 2022: 
 
-**Week 2**: Chapter 2.1-2.2
+- Chapter 1: Introduction
 
-**Week 3**: Chapter 4.1-4.3 (4.4 optional). Lab 4.7.1-2 (4.7.3-5 optional).
+- Chapter 2: Statistical Learning
 
-**Week 4**: Chapter 4.5-4.6. Lab 4.7.7.
+- Chapter 4: Classification
 
-**Week 5**: Chapter 5.1-5.2. Lab 5.3.1-4.
+- Chapter 5: Resampling Methods
 
-**Week 6**: Chapter 6.2-6.3 (6.4 optional). Lab 6.5.1-3.
+- Chapter 6: Linear Model Selection \& Regularization
 
-**Week 7**: Chapter 8.1-8.2. Lab 8.3.1-5
+- Chapter 8: Tree-Based Methods
 
-**Week 8**: Chapter 12.1-12.2. Lab 12.5.1.
+Spring 2022: 
 
-**Week 9**: Chapter 12.4. Lab 12.5.3-4
+- Chapter 7: Moving Beyond Linearity
 
-**Week 10**: Grace Week
+- Chapter 9: Support Vector Machines
+
+- Chapter 12: Unsupervised Learning
 
 # Organization
 
@@ -45,35 +47,35 @@ Sub-sections (e.g. Chapter 2.1.3) are separated with horizontal lines (created w
 \clearpage
 
 # Chapter 1: Introduction
-```{r child = 'ch1/ch1_notes.Rmd'}
+```{r child = 'ch01/ch1_notes.Rmd'}
 ```
 
 \clearpage
 
 # Chapter 2: Statistical Learning
-```{r child = 'ch2/ch2_notes.Rmd'}
+```{r child = 'ch02/ch2_notes.Rmd'}
 ```
 
 \clearpage
 
 # Chapter 4: Classification
-```{r child = 'ch4/ch4_notes.Rmd'}
+```{r child = 'ch04/ch4_notes.Rmd'}
 ```
 
 \clearpage
 
 # Chapter 5: Resampling Methods
-```{r child = 'ch5/ch5_notes.Rmd'}
+```{r child = 'ch05/ch5_notes.Rmd'}
 ```
 
 \clearpage
 
 # Chapter 6: Linear Model Selection and Regularization
-```{r child = 'ch6/ch6_notes.Rmd'}
+```{r child = 'ch06/ch6_notes.Rmd'}
 ```
 
 \clearpage
 
 # Chapter 8: Tree-Based Methods
-```{r child = 'ch8/ch8_notes.Rmd'}
+```{r child = 'ch08/ch8_notes.Rmd'}
 ```
