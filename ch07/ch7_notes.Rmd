@@ -7,9 +7,31 @@ output: pdf_document
 geometry: margin=1in
 ---
 
+All of the regression techniques used thus far have been linear. Starting with Least Squares regression, we moved onto improvements such as PCR, PLS, Ridge Regression, and the Lasso, but all of these techniques are still linear by nature. This chapter will introduce the following statistical learning methods to help us move beyond linearity: 
+
+1. **Polynomial Regression**: extends the linear model by adding extra predictors, the original predictor raised to powers. 
+
+2. **Step Functions**: cuts the range of a variable into distinct regions to produce a qualitative variable. 
+
+3. **Regression Splines**: divides the range of the predictor into distinct regions, and within each region, a polynomial function is fit. This provides an extremely flexible fit. 
+
+4. **Smoothing Splines**: a different formulation of regression splines, fit by minimizing an RSS criterion. 
+
+5. **Local Regression**: similar to splines, the predictor is separated into regions, but these regions can overlap. 
+
+6. **Generalized Additive Models (GAMs)**: extends the methods above to allow for multiple predictors. 
+
 ## 7.1: Polynomial Regression
 
+While the standard linear model takes the form: 
+$$y_i = \beta_0 + \beta_1 x_i + \epsilon_i,$$
+the polynomial function takes the form: 
+$$y_i = \beta_0 + \beta_1 x_i + \beta_2 x_i^2 + \beta_3 x_i^3 + \cdots + \beta_d x_i^d + \epsilon_i,$$
+where $\epsilon_i$ is the error term for a particular data point $x_i$, and $d$ is an integer value representing the maximum polynomial degree. These coefficients can be estimated very easily using simple least squares regression, as $y$ is still a linear combination of various predictors. Typically, $d$ will be, at most, 3 or 4. 
 
+Let's say we fit a degree-four polynomial to a set of data, and we look at the fit at a certain value of $x_0$: 
+$$\hat f(x_0) = \hat \beta_0 + \hat \beta_1 x_0 + \hat \beta_2 x_0^2 + \hat \beta_3 x_0^3 + \hat \beta_4 x_0^4$$
+What is the variance of this fit? Least squares gives us the variance for each coefficient $\hat\beta_j$, which we can use to estimate the variance of $\hat f(x_0)$, and the standard error at this point (pointwise standard error) is the square root of this variance. Assuming normal errors, plotting twice the standard error along with the polynomial fit gives an approximate 95% confidence interval. It turns out that these standard errors blow up as we get to either extreme of the $x$ variable. 
 
 ## 7.2: Step Functions
 
