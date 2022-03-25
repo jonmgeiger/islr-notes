@@ -35,7 +35,24 @@ What is the variance of this fit? Least squares gives us the variance for each c
 
 ## 7.2: Step Functions
 
+One issue with polynomial regression is that it imposes a certain *global* structure onto the non-linear function of $X$. Rather than imposing a global structure, we can use *step functions* to break $X$ into *bins* and fit a *constant value* within each bin. This converts a continuous variable into an *ordered categorical* variable. 
 
+We create cutpoints $c_1, c_2, \ldots, c_K$ in the range of $X$, then construct $K+1$ new variables: 
+$$
+\begin{aligned}
+C_0(X) &= I(X < c_1) \\
+C_1(X) &= I(c_1 \le X < c_2) \\
+C_2(X) &= I(c_2 \le X < c_3) \\
+&\vdots \\
+C_{K-1}(X) &= I(c_{K-1} \le X < c_K) \\
+C_K(X) &= I(X \ge c_K)
+\end{aligned}
+$$
+where $I$ is an indicator function returning 1 if the condition is true, and 0 if it's false. We can notice that since an individual observation $x_i$ can only be in one of these $K+1$ intervals, it must be the case that $C_0(X) + C_1(X) + \cdots + C_K(X) = 1$. We can use least squares to fit a linear model of these step functions with $C_1(X), C_2(X), \ldots, C_K(X)$ as predictors: 
+$$y_i = \beta_0 + \beta_1 C_1(x_i) + \beta_2 C_2(x_i) + \cdots + \beta_K C_K(x_i) + \epsilon_i.$$
+We can notice that when all of the $C$ predictors are zero (when $x_i$ falls in the range less than $c_1$), the intercept $\beta_0$ can be interpreted as the mean of $Y$ for values where $X \le c_1$. By contrast, when $X$ falls into a different range, the equation will predict a response of $\beta_0 + \beta_j$ for $c_j \le X < c_{j+1}$, so $\beta_j$ woudl represent the average increase in the response for $X$ relative to $\beta_0$ (the mean response for values where $X \le c_1$). 
+
+Unless there are natural breakpoints in the data, piecewise-constant functions can miss the action. These sorts of functions are used fairly often in biostatistics and epidemiology, as well as other disciplines. 
 
 ## 7.3: Basis Functions
 
